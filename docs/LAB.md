@@ -19,11 +19,20 @@ You do **not** need to implement hyperparameter tuning logic—the workload is i
 
 Replace `<GRANT>` in SLURM scripts with your grant name (e.g. `plg12345` → account `plg12345-gpu-a100`).
 
+> **Reminder — where to run commands**
+>
+> | What | Where |
+> |------|--------|
+> | `sbatch slurm/athena/*.sbatch` | **Login node** (`athena.cyfronet.pl`, after `ssh`) |
+> | `setup_env.sh`, `download_cifar.sh`, interactive `srun ... --pty` | **Compute node** (inside an allocated job) |
+>
+> Always submit batch jobs from the **login node**, from the repo directory (e.g. `cd $HOME/ray-slurm` then `sbatch ...`). Do **not** run `sbatch` from inside an interactive compute session.
+
 ---
 
 ## Part 0 — Environment setup
 
-Run inside **interactive compute jobs** on Athena, not on login nodes.
+Run Part 0 inside **interactive compute jobs** on Athena, not on login nodes.
 
 ### 0.1 Python virtualenv (on `$SCRATCH`)
 
@@ -79,7 +88,10 @@ ray stop
 
 Configure and submit [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_cluster.sbatch) (set `#SBATCH --account=<GRANT>-gpu-a100`).
 
+On the **login node**:
+
 ```bash
+cd $HOME/ray-slurm
 sbatch slurm/athena/ray_verify_cluster.sbatch
 ```
 
@@ -93,7 +105,10 @@ Key ideas: head **IP** (`172.23.x.x:6379`), staggered `ray start`, verify runs o
 
 Same cluster layout as Part 2; trials use **one GPU each**.
 
+From the **login node**:
+
 ```bash
+cd $HOME/ray-slurm
 sbatch slurm/athena/ray_tune_gpu.sbatch
 ```
 
@@ -109,7 +124,10 @@ tail -f slurm-ray-tune-gpu-<jobid>.out
 
 Athena jobs must **request a GPU** in SLURM (`#SBATCH --gres=gpu:1`). The CPU comparison still runs on Athena: Ray sees the GPUs, but Tune is told to use **CPU only** (`--gpus-per-trial 0`).
 
+From the **login node**:
+
 ```bash
+cd $HOME/ray-slurm
 sbatch slurm/athena/ray_tune_cpu.sbatch
 ```
 

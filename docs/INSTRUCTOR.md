@@ -35,6 +35,7 @@ CPU runs are slower; comparison is **relative** speedup on the same cluster topo
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
+| `sbatch` fails or wrong paths from compute node | Submitted inside `srun` / compute shell | Run `sbatch` only from the **login node**; `cd` to repo first |
 | `AF_UNIX path too long` | Ray temp under deep `$SCRATCH` | `RAY_TMPDIR=/tmp/ray-$USER`, `--temp-dir` |
 | Workers never join | Wrong address | Head **compute IP** (`172.23.x.x:6379`) |
 | `SLURM_GPUS_PER_TASK: unbound variable` | `set -u` | `${SLURM_GPUS_PER_TASK:-${SLURM_GPUS_ON_NODE:-1}}` |

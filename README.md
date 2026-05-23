@@ -21,11 +21,10 @@ docs/LAB.md
 
 Create the venv once on a **compute node** (`bash scripts/setup_env.sh` → `$SCRATCH/venv-ray`).
 
-```bash
-module load PyTorch-Geometric/2.5.1
-source $SCRATCH/venv-ray/bin/activate
-export RAY_TMPDIR="/tmp/ray-$USER"
+Submit all `sbatch` jobs from the **login node** (not from inside `srun`):
 
+```bash
+cd $HOME/ray-slurm
 sbatch slurm/athena/ray_verify_cluster.sbatch
 sbatch slurm/athena/ray_tune_gpu.sbatch
 sbatch slurm/athena/ray_tune_cpu.sbatch

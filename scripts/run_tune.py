@@ -87,10 +87,16 @@ def load_data(data_dir: str):
     return trainset, testset
 
 
-def train_cifar(config: dict, data_dir: str | None = None) -> None:
+def train_cifar(
+    config: dict,
+    data_dir: str | None = None,
+    *,
+    gpus_per_trial: float = 0.0,
+) -> None:
     data_dir = data_dir or "./data"
     net = Net(config["l1"], config["l2"])
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    use_cuda = gpus_per_trial > 0 and torch.cuda.is_available()
+    device = "cuda" if use_cuda else "cpu"
     net = net.to(device)
     if device == "cuda" and torch.cuda.device_count() > 1:
         net = nn.DataParallel(net)
@@ -253,14 +259,20 @@ def main() -> int:
 
     param_space = build_search_space(lab)
     trainable = tune.with_resources(
-        partial(train_cifar, data_dir=data_dir),
+        partial(train_cifar, data_dir=data_dir, gpus_per_trial=gpus_per_trial),
         resources={"cpu": cpus_per_trial, "gpu": gpus_per_trial},
     )
 
+    train_device = (
+        "cuda"
+        if gpus_per_trial > 0 and torch.cuda.is_available()
+        else "cpu"
+    )
     print(f"Data dir: {data_dir}")
     print(f"Storage: {storage_path}")
     print(f"Trials: {num_samples}, cpus/trial={cpus_per_trial}, gpus/trial={gpus_per_trial}")
-    print(f"CUDA available: {torch.cuda.is_available()}")
+    print(f"CUDA available on node: {torch.cuda.is_available()}")
+    print(f"Training device for trials: {train_device}")
 
     started = time.time()
     tuner = tune.Tuner(
