@@ -11,6 +11,8 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+
+os.environ.setdefault("RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO", "0")
 import tempfile
 import time
 from functools import partial
@@ -237,8 +239,10 @@ def main() -> int:
     )
     experiment_name = args.experiment_name or lab["experiment_name"]
 
+    connected_here = False
     if not ray.is_initialized():
         ray.init(address="auto")
+        connected_here = True
 
     scheduler = ASHAScheduler(
         max_t=lab["max_epochs"],
@@ -281,6 +285,8 @@ def main() -> int:
     print(f"Best config: {best.config}")
     print(f"Best metrics: {best.metrics}")
     print(f"Results directory: {storage_path}/{experiment_name}")
+    if connected_here:
+        ray.shutdown()
     return 0
 
 

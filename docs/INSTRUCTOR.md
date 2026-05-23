@@ -41,6 +41,8 @@ CPU runs are intentionally slower; students compare **relative** speedup, not eq
 | Tune hangs / OOM | `cpus-per-trial` too high | Lower in sbatch CLI (2 GPU, 4 CPU) |
 | CIFAR download fails on login | Network/policy | Run `download_cifar.sh` inside compute job |
 | `symmetric-run` not found | Ray < 2.49 | Re-run `setup_env.sh` |
+| `RuntimeError: can't register atexit after shutdown` after verify | Ray log thread vs interpreter exit | Fixed in `verify_cluster.py` (`ray.shutdown()`); pull latest |
+| Ray reports 128 CPU / huge memory on one GPU | `ray start` without `--num-cpus` | Use SLURM templates / limit cpus to match allocation |
 | Ares: no torch | Module only on Athena | `pip install torch torchvision` in shared venv on Ares job |
 
 ## HPC validation checklist (maintainer)
