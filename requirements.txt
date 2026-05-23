@@ -1,0 +1,3 @@
+ray[tune]>=2.49
+pyyaml>=6.0
+torchvision>=0.15
