@@ -4,7 +4,9 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VENV_DIR="${VENV_DIR:-${HOME}/venv-ray}"
+: "${SCRATCH:?SCRATCH is not set — run this on a compute node}"
+
+VENV_DIR="${VENV_DIR:-${SCRATCH}/venv-ray}"
 
 # Paired modules from: module avail torch  (on Ares)
 module load pytorch/1.10.0-foss-2021a-cuda-11.3.1

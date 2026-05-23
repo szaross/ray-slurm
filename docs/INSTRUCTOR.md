@@ -57,7 +57,7 @@ bash scripts/validate_local.sh
 
 ## Environment
 
-- `module load PyTorch-Geometric/2.5.1` + `$HOME/venv-ray` (or `$SCRATCH/venv-ray` via `VENV_PATH`)
+- `module load PyTorch-Geometric/2.5.1` + venv at `$SCRATCH/venv-ray` (`bash scripts/setup_env.sh` on a compute node)
 - CIFAR + Tune results on `$SCRATCH`; copy artifacts to `$HOME` before scratch cleanup
 
 ## Customization

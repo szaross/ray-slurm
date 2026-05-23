@@ -17,7 +17,7 @@ REPO_ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pw
 cd "$REPO_ROOT"
 
 module load PyTorch-Geometric/2.5.1
-source "${VENV_PATH:-${HOME}/venv-ray}/bin/activate"
+source "${VENV_PATH:-${SCRATCH}/venv-ray}/bin/activate"
 
 export RAY_TMPDIR="/tmp/ray-${USER}"
 mkdir -p "$RAY_TMPDIR"

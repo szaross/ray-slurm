@@ -17,7 +17,7 @@ cd "$REPO_ROOT"
 
 module load pytorch/1.10.0-foss-2021a-cuda-11.3.1
 module load torchvision/0.11.1-foss-2021a-cuda-11.3.1-pytorch-1.10.0
-source "${VENV_PATH:-${HOME}/venv-ray}/bin/activate"
+source "${VENV_PATH:-${SCRATCH}/venv-ray}/bin/activate"
 
 export RAY_TMPDIR="/tmp/ray-${USER}"
 mkdir -p "$RAY_TMPDIR"

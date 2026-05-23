@@ -25,16 +25,18 @@ Replace `<GRANT>` in SLURM scripts with your grant name (e.g. `plg12345` → acc
 
 Run inside **interactive compute jobs** on Athena, not on login nodes.
 
-### 0.1 Python virtualenv
+### 0.1 Python virtualenv (on `$SCRATCH`)
+
+The venv is created on **`$SCRATCH/venv-ray`**, not in `$HOME` (faster I/O, avoids home quota).
 
 ```bash
-cd $HOME/ray-slurm
+cd $HOME/ray-slurm   # repo can stay in $HOME; venv goes to scratch
 bash scripts/setup_env.sh
-source ${VENV_PATH:-$HOME/venv-ray}/bin/activate
+source $SCRATCH/venv-ray/bin/activate
 python -c "import torch, ray; print('ok')"
 ```
 
-If your venv lives on scratch: `export VENV_PATH=$SCRATCH/venv-ray` before `sbatch`.
+If you previously used `$HOME/venv-ray`, delete it and rerun `setup_env.sh` so everything uses scratch.
 
 ### 0.2 Ray temp directory
 
@@ -46,8 +48,7 @@ mkdir -p "$RAY_TMPDIR"
 ### 0.3 Download CIFAR-10
 
 ```bash
-source $HOME/venv-ray/bin/activate
-export DATA_DIR="${SCRATCH}/data/cifar10"
+source $SCRATCH/venv-ray/bin/activate
 bash scripts/download_cifar.sh
 ```
 
@@ -64,7 +65,7 @@ On the compute node:
 
 ```bash
 module load PyTorch-Geometric/2.5.1
-source $HOME/venv-ray/bin/activate
+source $SCRATCH/venv-ray/bin/activate
 export RAY_TMPDIR="/tmp/ray-${USER}"
 mkdir -p "$RAY_TMPDIR"
 ray start --head --num-gpus=1 --temp-dir="$RAY_TMPDIR"

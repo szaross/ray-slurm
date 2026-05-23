@@ -1,9 +1,10 @@
 #!/bin/bash
-# One-time venv for Athena (pip install). On Ares use scripts/setup_env_ares.sh (PyTorch modules).
-# Run inside an interactive SLURM compute job, not on login nodes.
+# One-time venv on $SCRATCH (pip install). Run inside a SLURM compute job, not on login nodes.
 set -euo pipefail
 
-VENV_DIR="${VENV_DIR:-${HOME}/venv-ray}"
+: "${SCRATCH:?SCRATCH is not set — run this on an Athena compute node}"
+
+VENV_DIR="${VENV_DIR:-${SCRATCH}/venv-ray}"
 
 module load PyTorch-Geometric/2.5.1 2>/dev/null || true
 

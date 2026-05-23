@@ -19,9 +19,11 @@ docs/LAB.md
 
 ## Quickstart (Athena)
 
+Create the venv once on a **compute node** (`bash scripts/setup_env.sh` → `$SCRATCH/venv-ray`).
+
 ```bash
 module load PyTorch-Geometric/2.5.1
-source ${VENV_PATH:-$HOME/venv-ray}/bin/activate
+source $SCRATCH/venv-ray/bin/activate
 export RAY_TMPDIR="/tmp/ray-$USER"
 
 sbatch slurm/athena/ray_verify_cluster.sbatch

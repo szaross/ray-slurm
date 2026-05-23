@@ -2,7 +2,9 @@
 # Download CIFAR-10 into $SCRATCH/data/cifar10 (run inside a compute job).
 set -euo pipefail
 
-export DATA_DIR="${DATA_DIR:-${SCRATCH:-$HOME}/data/cifar10}"
+: "${SCRATCH:?SCRATCH is not set — run this on an Athena compute node}"
+
+export DATA_DIR="${DATA_DIR:-${SCRATCH}/data/cifar10}"
 mkdir -p "$DATA_DIR"
 
 if [[ -f "${BASH_SOURCE[0]:-}" ]]; then
@@ -11,7 +13,7 @@ else
   REPO_ROOT="$(pwd)"
 fi
 
-source "${VENV_DIR:-${SCRATCH:-$HOME}/venv-ray}/bin/activate" 2>/dev/null || true
+source "${VENV_DIR:-${SCRATCH}/venv-ray}/bin/activate"
 
 python3 - <<PY
 import os
