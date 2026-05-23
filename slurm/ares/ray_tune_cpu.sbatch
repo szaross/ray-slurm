@@ -15,6 +15,8 @@ set -euo pipefail
 REPO_ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 cd "$REPO_ROOT"
 
+module load pytorch/1.10.0-foss-2021a-cuda-11.3.1
+module load torchvision/0.11.1-foss-2021a-cuda-11.3.1-pytorch-1.10.0
 source "${VENV_PATH:-${HOME}/venv-ray}/bin/activate"
 
 export RAY_TMPDIR="/tmp/ray-${USER}"

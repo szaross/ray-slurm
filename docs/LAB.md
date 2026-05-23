@@ -25,21 +25,57 @@ Replace `<GRANT>` in all SLURM scripts with your grant name (e.g. `plg12345` →
 
 Run these steps **inside interactive compute jobs**, not on login nodes.
 
-### 0.1 Create Python virtualenv
+### 0.1 Python virtualenv (Athena **and** Ares)
 
-On Athena (interactive GPU job, see Part 1.1):
+| Path | Visible on Athena? | Visible on Ares? |
+|------|-------------------|------------------|
+| `$HOME/ray-slurm` (git clone) | yes | yes |
+| `$HOME/venv-ray` | yes | yes |
+| `$SCRATCH/...` | Athena only | Ares only |
+
+Use **`$HOME/venv-ray`** for Ray on both systems. Setup differs:
+
+| System | PyTorch | Ray / Tune |
+|--------|---------|------------|
+| **Athena** | `module load PyTorch-Geometric/2.5.1` + pip in venv | `bash scripts/setup_env.sh` |
+| **Ares** | `module load pytorch/...` + `torchvision/...` | `bash scripts/setup_env_ares.sh` |
+
+**Athena** (interactive GPU compute job):
 
 ```bash
-cd $HOME/ray-slurm   # or your clone path
+cd $HOME/ray-slurm
 bash scripts/setup_env.sh
+source $HOME/venv-ray/bin/activate
+python -c "import torch, ray; print('ok')"
 ```
 
-On Ares, if PyTorch is not available via modules, use the same venv in `$HOME/venv-ray` (created on Athena or via `setup_env.sh` on an Ares CPU job with `pip install torch torchvision`).
+**Ares** (interactive CPU compute job)—PyTorch from modules (`module avail torch`):
+
+```bash
+cd $HOME/ray-slurm
+bash scripts/setup_env_ares.sh    # venv --system-site-packages; pip installs ray, pydantic only
+source $HOME/venv-ray/bin/activate
+module load pytorch/1.10.0-foss-2021a-cuda-11.3.1
+module load torchvision/0.11.1-foss-2021a-cuda-11.3.1-pytorch-1.10.0
+python -c "import torch, torchvision, ray; print('ok')"
+```
+
+If you already created `$HOME/venv-ray` with `setup_env.sh` only (pip torch, no `--system-site-packages`), recreate on Ares with `setup_env_ares.sh` before CPU jobs.
+
+If you only have `$SCRATCH/venv-ray` on Athena, use `export VENV_PATH=$SCRATCH/venv-ray` for Athena sbatch (GPU path still uses PyG module there).
+
+**Athena-only shortcut:** if you keep the venv in scratch, set before each Athena `sbatch`:
+
+```bash
+export VENV_PATH=$SCRATCH/venv-ray
+```
+
+Ares scripts always use `$HOME/venv-ray` unless you set `VENV_PATH` the same way.
 
 ### 0.2 Ray version and temp directory
 
 ```bash
-source ${SCRATCH}/venv-ray/bin/activate   # or $HOME/venv-ray
+source $HOME/venv-ray/bin/activate
 ray --version    # Ray 2.x
 ```
 
@@ -54,11 +90,33 @@ SLURM templates pass `--temp-dir="$RAY_TMPDIR"` to Ray.
 
 ### 0.3 Download CIFAR-10
 
-Inside a compute job:
+`$SCRATCH` is **per supercomputer**. Download on **both** Athena and Ares (inside a compute job on each):
 
 ```bash
+source $HOME/venv-ray/bin/activate
 export DATA_DIR="${SCRATCH}/data/cifar10"
 bash scripts/download_cifar.sh
+```
+
+Tune results also go to `$SCRATCH/ray_results` on the machine where the job runs.
+
+---
+
+## Part 0b — Quick check on Ares (optional)
+
+On **ares.cyfronet.pl**, request a short CPU node and confirm Ray imports:
+
+```bash
+srun -p plgrid-testing -N 1 -n 1 --cpus-per-task=4 --mem=8G \
+  -A <GRANT>-cpu --time=00:30:00 --pty /bin/bash -l
+
+cd $HOME/ray-slurm
+module load pytorch/1.10.0-foss-2021a-cuda-11.3.1
+module load torchvision/0.11.1-foss-2021a-cuda-11.3.1-pytorch-1.10.0
+source $HOME/venv-ray/bin/activate
+export RAY_TMPDIR="/tmp/ray-${USER}"
+mkdir -p "$RAY_TMPDIR"
+ray --version
 ```
 
 ---
@@ -76,7 +134,7 @@ On the compute node:
 
 ```bash
 module load PyTorch-Geometric/2.5.1
-source ${SCRATCH}/venv-ray/bin/activate
+source $HOME/venv-ray/bin/activate
 export RAY_TMPDIR="/tmp/ray-${USER}"
 mkdir -p "$RAY_TMPDIR"
 
@@ -155,21 +213,54 @@ python scripts/run_tune.py --gpus-per-trial 1 --cpus-per-trial 2 --num-samples 1
 
 ## Part 4 — CPU hyperparameter sweep (Ares)
 
-Log in to **ares.cyfronet.pl**. Use the CPU templates—**no `--gres`**.
+Athena is **GPU-only** for policy reasons; the CPU baseline runs on **Ares** with the same [`scripts/run_tune.py`](../scripts/run_tune.py) (`--gpus-per-trial 0`).
 
-Testing partition (short queue):
+### 4.1 What you need on Ares
+
+1. Repo at `$HOME/ray-slurm` (same clone as Athena).
+2. Venv from **`bash scripts/setup_env_ares.sh`** (`$HOME/venv-ray`, `--system-site-packages`).
+3. Each job loads modules (already in sbatch):
+
+   ```bash
+   module load pytorch/1.10.0-foss-2021a-cuda-11.3.1
+   module load torchvision/0.11.1-foss-2021a-cuda-11.3.1-pytorch-1.10.0
+   ```
+
+   CUDA in the module name is normal; trials still run on **CPU** (`--gpus-per-trial 0`). Other versions: `module avail torch`.
+
+4. CIFAR-10 under **`$SCRATCH/data/cifar10` on Ares** (Part 0.3 on a compute node).
+5. `#SBATCH --account=<GRANT>-cpu` in [`slurm/ares/*.sbatch`](../slurm/ares/).
+
+### 4.2 Configure and verify (2 nodes)
+
+SSH to Ares, edit grant in [`slurm/ares/ray_verify_cluster.sbatch`](../slurm/ares/ray_verify_cluster.sbatch), then:
 
 ```bash
-sbatch slurm/ares/ray_verify_cluster.sbatch   # plgrid-testing
+cd $HOME/ray-slurm
+sbatch slurm/ares/ray_verify_cluster.sbatch
 ```
 
-Full CPU sweep:
+Check `slurm-ray-verify-cpu-<jobid>.out` for `Alive nodes: 2` (same pattern as Athena: head IP, staggered `ray start`, verify on batch node).
+
+### 4.3 Full CPU tune job
 
 ```bash
 sbatch slurm/ares/ray_tune_cpu.sbatch
 ```
 
-Same `run_tune.py`, with `--gpus-per-trial 0`. Expect **longer** wall time than Athena.
+Follow logs: `tail -f slurm-ray-tune-cpu-<jobid>.out`
+
+Wall time is usually **much longer** than Athena; use the same `num_samples` in [`config/lab_defaults.yaml`](../config/lab_defaults.yaml) for a fair comparison.
+
+### 4.4 Troubleshooting on Ares
+
+| Problem | Fix |
+|---------|-----|
+| `venv-ray: No such file` | Run Part 0.1 on Ares (or copy venv to `$HOME`) |
+| `No module named torch` | Run `setup_env_ares.sh`; load pytorch+torchvision modules before `source` venv |
+| `pydantic` ImportError | `pip install pydantic` |
+| CIFAR download fails | Run `download_cifar.sh` inside a **compute** job, not login |
+| Hang after workers | Pull latest sbatch (run verify on batch node, not second `srun`) |
 
 ---
 

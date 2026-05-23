@@ -24,7 +24,7 @@ Verified single-node startup:
 
 ```bash
 module load PyTorch-Geometric/2.5.1
-source $SCRATCH/venv-ray/bin/activate
+source $HOME/venv-ray/bin/activate   # shared on Athena + Ares; see docs/LAB.md
 export RAY_TMPDIR="/tmp/ray-$USER"
 mkdir -p "$RAY_TMPDIR"
 ray start --head --num-gpus=1 --temp-dir="$RAY_TMPDIR"

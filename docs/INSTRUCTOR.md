@@ -44,6 +44,7 @@ CPU runs are intentionally slower; students compare **relative** speedup, not eq
 | `Timed out waiting for head` / stuck at `1/2 nodes` with `symmetric-run` | Worker GCS check races / Athena networking | Lab sbatch uses classic `ray start` head, then workers (staggered) |
 | Worker cannot join | Wrong address | `--address` must be head compute IP (`172.23.x.x:6379`) |
 | Metrics exporter `rpc_code: 14` | Noisy agent on HPC | Usually harmless; head/worker join is the real issue |
+| `ray.train.v2` requires pydantic | Missing optional dep in venv | `pip install pydantic` (included in `setup_env.sh`) |
 | Tune hangs / OOM | `cpus-per-trial` too high | Lower in sbatch CLI (2 GPU, 4 CPU) |
 | CIFAR download fails on login | Network/policy | Run `download_cifar.sh` inside compute job |
 | `Got unexpected extra argument (symmetric-run)` | Broken `ray symmetric-run` CLI | Lab uses classic `ray start` in sbatch instead |
@@ -69,7 +70,8 @@ bash scripts/validate_local.sh
 
 ## Environment notes
 
-- **Athena:** `module load PyTorch-Geometric/2.5.1` + venv at `$SCRATCH/venv-ray` (tested by maintainer).
+- **Athena:** `module load PyTorch-Geometric/2.5.1` + venv at `$HOME/venv-ray` (shared with Ares).
+- **Ares:** `pytorch/1.10.0-foss-2021a-cuda-11.3.1` + `torchvision/0.11.1-...-pytorch-1.10.0`; `setup_env_ares.sh` (venv with `--system-site-packages`, pip: ray/pydantic only).
 - **Ares:** No GPU in sbatch; use `plgrid` or `plgrid-testing` for verify.
 - **Accounts:** ` <grant>-gpu-a100` (Athena), `<grant>-cpu` (Ares).
 - **Storage:** CIFAR and Tune results on `$SCRATCH`; 7-day job dir cleanup on scratch—students should copy artifacts to `$HOME` for submission.
