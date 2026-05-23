@@ -70,6 +70,13 @@ done
 echo "Waiting for workers to register..."
 sleep 15
 
+echo "Ray status on head:"
+srun --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
+  env RAY_ADDRESS="${ip_head}" ray status || true
+
+echo "Running verify_cluster.py on ${head_node}..."
 srun --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
   env RAY_ADDRESS="${ip_head}" \
   python -u "$REPO_ROOT/scripts/verify_cluster.py"
+
+echo "Verify job step finished at: $(date -Is)"

@@ -14,11 +14,14 @@ import ray
 
 
 def main() -> int:
+    print("verify_cluster: starting...", flush=True)
     connected_here = False
     if not ray.is_initialized():
         address = os.environ.get("RAY_ADDRESS", "auto")
+        print(f"verify_cluster: ray.init(address={address!r})", flush=True)
         ray.init(address=address)
         connected_here = True
+    print("verify_cluster: connected.", flush=True)
 
     exit_code = 0
     try:
