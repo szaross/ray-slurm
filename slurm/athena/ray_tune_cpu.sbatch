@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH --job-name=ray-tune-gpu
+#SBATCH --job-name=ray-tune-cpu
 #SBATCH --partition=plgrid-gpu-a100
 #SBATCH --account=<GRANT>-gpu-a100
 #SBATCH --nodes=2
@@ -7,9 +7,9 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=128000
 #SBATCH --gres=gpu:1
-#SBATCH --time=02:00:00
-#SBATCH --output=slurm-ray-tune-gpu-%j.out
-#SBATCH --error=slurm-ray-tune-gpu-%j.err
+#SBATCH --time=04:00:00
+#SBATCH --output=slurm-ray-tune-cpu-%j.out
+#SBATCH --error=slurm-ray-tune-cpu-%j.err
 
 set -euo pipefail
 
@@ -36,6 +36,7 @@ echo "Head node: ${head_node}"
 echo "IP Head: ${ip_head}"
 echo "Nodes: ${nodes_array[*]}"
 echo "Job started at: $(date -Is)"
+echo "Tune mode: CPU trials (--gpus-per-trial 0); SLURM still allocates GPU per Athena policy"
 
 ray_cluster_cleanup() {
   for node in "${nodes_array[@]}"; do
@@ -70,18 +71,18 @@ sleep 15
 export RAY_ADDRESS="${ip_head}"
 if [[ "$(hostname -s)" == "${head_node}" ]]; then
   python -u "$REPO_ROOT/scripts/run_tune.py" \
-    --gpus-per-trial 1 \
-    --cpus-per-trial 2 \
-    --experiment-name cifar10_tune_lab_gpu \
+    --gpus-per-trial 0 \
+    --cpus-per-trial 4 \
+    --experiment-name cifar10_tune_lab_cpu \
     --data-dir "${SCRATCH}/data/cifar10" \
     --storage-path "${SCRATCH}/ray_results"
 else
   srun --overlap --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
     env RAY_ADDRESS="${ip_head}" \
     python -u "$REPO_ROOT/scripts/run_tune.py" \
-      --gpus-per-trial 1 \
-      --cpus-per-trial 2 \
-      --experiment-name cifar10_tune_lab_gpu \
+      --gpus-per-trial 0 \
+      --cpus-per-trial 4 \
+      --experiment-name cifar10_tune_lab_cpu \
       --data-dir "${SCRATCH}/data/cifar10" \
       --storage-path "${SCRATCH}/ray_results"
 fi

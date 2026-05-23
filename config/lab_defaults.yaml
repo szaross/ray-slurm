@@ -10,7 +10,7 @@ max_epochs: 3
 grace_period: 1
 
 cpus_per_trial: 2
-gpus_per_trial: null  # set via CLI: 1 on Athena, 0 on Ares
+gpus_per_trial: null  # set via CLI: 1 (GPU job) or 0 (CPU job) on Athena
 
 num_workers: 4  # DataLoader workers per trial (lower on CPU if needed)
 
