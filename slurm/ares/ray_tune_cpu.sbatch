@@ -30,8 +30,9 @@ echo "IP Head: $ip_head"
 echo "Nodes: ${nodes_array[*]}"
 echo "Job started at: $(date -Is)"
 
-srun --nodes="$SLURM_JOB_NUM_NODES" --ntasks="$SLURM_JOB_NUM_NODES" \
-  ray symmetric-run \
+srun --nodes="$SLURM_JOB_NUM_NODES" --ntasks="$SLURM_JOB_NUM_NODES" --ntasks-per-node=1 \
+  --cpu-bind=none \
+  python -m ray.scripts.symmetric_run \
   --address "$ip_head" \
   --min-nodes "$SLURM_JOB_NUM_NODES" \
   --num-cpus="${SLURM_CPUS_PER_TASK}" \

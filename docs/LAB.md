@@ -96,7 +96,7 @@ This is the core graded task: configure SLURM so Ray spans **multiple nodes**.
 
 ### 2.1 Understand the template
 
-Open [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_cluster.sbatch) — it follows the [Ray SLURM guide](https://docs.ray.io/en/latest/cluster/vms/user-guides/community/slurm.html) (`ip_head`, `srun`, `ray symmetric-run`, `--` before `python`).
+Open [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_cluster.sbatch) — it follows the [Ray SLURM guide](https://docs.ray.io/en/latest/cluster/vms/user-guides/community/slurm.html) (`ip_head`, `srun`, `python -m ray.scripts.symmetric_run`, `--` before `python`).
 
 | Setting | Why it matters |
 |--------|----------------|
@@ -107,6 +107,7 @@ Open [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_clust
 | `--` before `python` | **Required** separator (Ray start opts vs entrypoint) |
 | `--min-nodes` | Wait until all nodes join |
 | `--temp-dir` | Short path on Cyfronet (not in upstream docs; avoids socket errors) |
+| `srun --cpu-bind=none` | Required on Cyfronet when `srun` runs inside `sbatch` |
 
 ### 2.2 Configure and submit
 

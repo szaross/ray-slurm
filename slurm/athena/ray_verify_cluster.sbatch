@@ -39,8 +39,11 @@ echo "Nodes: ${nodes_array[*]}"
 #
 # All nodes (including head and workers) will execute this block.
 # The entrypoint will only run on the head node.
-srun --nodes="$SLURM_JOB_NUM_NODES" --ntasks="$SLURM_JOB_NUM_NODES" \
-  ray symmetric-run \
+# Use python -m (not `ray symmetric-run`): some Ray builds pass "symmetric-run" into `ray start` by mistake.
+# --cpu-bind=none: nested srun inside sbatch must not re-bind CPUs (Cyfronet default bind conflicts)
+srun --nodes="$SLURM_JOB_NUM_NODES" --ntasks="$SLURM_JOB_NUM_NODES" --ntasks-per-node=1 \
+  --cpu-bind=none \
+  python -m ray.scripts.symmetric_run \
   --address "$ip_head" \
   --min-nodes "$SLURM_JOB_NUM_NODES" \
   --num-cpus="${SLURM_CPUS_PER_TASK}" \
