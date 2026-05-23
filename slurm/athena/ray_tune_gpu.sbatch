@@ -22,23 +22,28 @@ source "${VENV_PATH:-${SCRATCH}/venv-ray}/bin/activate"
 export RAY_TMPDIR="/tmp/ray-${USER}"
 mkdir -p "$RAY_TMPDIR"
 
-nodes=($(scontrol show hostnames "$SLURM_JOB_NODELIST"))
-export ip_head="${nodes[0]}:6379"
-echo "Ray head address: $ip_head"
-echo "Nodes: ${nodes[*]}"
+nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
+nodes_array=($nodes)
+head_node=${nodes_array[0]}
+port=6379
+ip_head=$head_node:$port
+export ip_head
+echo "IP Head: $ip_head"
+echo "Nodes: ${nodes_array[*]}"
 echo "Job started at: $(date -Is)"
 
 srun --nodes="$SLURM_JOB_NUM_NODES" --ntasks="$SLURM_JOB_NUM_NODES" \
   ray symmetric-run \
-    --address "$ip_head" \
-    --min-nodes "$SLURM_JOB_NUM_NODES" \
-    --num-cpus="${SLURM_CPUS_PER_TASK}" \
-    --num-gpus="${SLURM_GPUS_PER_TASK:-1}" \
-    --temp-dir="$RAY_TMPDIR" \
-  -- python -u "$REPO_ROOT/scripts/run_tune.py" \
-      --gpus-per-trial 1 \
-      --cpus-per-trial 2 \
-      --data-dir "${SCRATCH}/data/cifar10" \
-      --storage-path "${SCRATCH}/ray_results"
+  --address "$ip_head" \
+  --min-nodes "$SLURM_JOB_NUM_NODES" \
+  --num-cpus="${SLURM_CPUS_PER_TASK}" \
+  --num-gpus="${SLURM_GPUS_PER_TASK}" \
+  --temp-dir="${RAY_TMPDIR}" \
+  -- \
+  python -u "$REPO_ROOT/scripts/run_tune.py" \
+    --gpus-per-trial 1 \
+    --cpus-per-trial 2 \
+    --data-dir "${SCRATCH}/data/cifar10" \
+    --storage-path "${SCRATCH}/ray_results"
 
 echo "Job finished at: $(date -Is)"

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Students configure **multi-node Ray on Athena** via SLURM (`ray symmetric-run`), then run the shared [`scripts/run_tune.py`](../scripts/run_tune.py) twice:
+Students configure **multi-node Ray on Athena** via SLURM (`ray symmetric-run` in [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_cluster.sbatch)), then run the shared [`scripts/run_tune.py`](../scripts/run_tune.py) twice:
 
 | Run | System | SLURM template | Tune GPUs |
 |-----|--------|----------------|-----------|
@@ -40,6 +40,8 @@ CPU runs are intentionally slower; students compare **relative** speedup, not eq
 | Ray GPU = 0 on Athena | Missing `#SBATCH --gres=gpu:1` | Add GRES; check `SLURM_GPUS_PER_TASK` |
 | Tune hangs / OOM | `cpus-per-trial` too high | Lower in sbatch CLI (2 GPU, 4 CPU) |
 | CIFAR download fails on login | Network/policy | Run `download_cifar.sh` inside compute job |
+| `Got unexpected extra argument (symmetric-run)` | Missing `--` before entrypoint | Must be: `ray symmetric-run --address IP:6379 ... -- python script.py` |
+| `Missing option '--address'` | Address not set | Set `ip_head=$head_node:6379` per Ray docs |
 | `symmetric-run` not found | Ray < 2.49 | Re-run `setup_env.sh` |
 | `RuntimeError: can't register atexit after shutdown` after verify | Ray log thread vs interpreter exit | Fixed in `verify_cluster.py` (`ray.shutdown()`); pull latest |
 | Ray reports 128 CPU / huge memory on one GPU | `ray start` without `--num-cpus` | Use SLURM templates / limit cpus to match allocation |

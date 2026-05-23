@@ -16,7 +16,8 @@ import ray
 def main() -> int:
     connected_here = False
     if not ray.is_initialized():
-        ray.init(address="auto")
+        address = os.environ.get("RAY_ADDRESS", "auto")
+        ray.init(address=address)
         connected_here = True
 
     exit_code = 0

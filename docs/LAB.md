@@ -40,7 +40,7 @@ On Ares, if PyTorch is not available via modules, use the same venv in `$HOME/ve
 
 ```bash
 source ${SCRATCH}/venv-ray/bin/activate   # or $HOME/venv-ray
-ray --version    # must be >= 2.49 (for symmetric-run)
+ray --version    # must be >= 2.49 (`ray symmetric-run --help`)
 ```
 
 Ray’s default session path under deep `$SCRATCH` trees can exceed the Unix socket path limit (~107 bytes). Always use a **short** temp directory:
@@ -96,16 +96,17 @@ This is the core graded task: configure SLURM so Ray spans **multiple nodes**.
 
 ### 2.1 Understand the template
 
-Open [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_cluster.sbatch).
+Open [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_cluster.sbatch) — it follows the [Ray SLURM guide](https://docs.ray.io/en/latest/cluster/vms/user-guides/community/slurm.html) (`ip_head`, `srun`, `ray symmetric-run`, `--` before `python`).
 
 | Setting | Why it matters |
 |--------|----------------|
 | `#SBATCH --nodes=N` | Number of machines in the Ray cluster |
-| `#SBATCH --ntasks-per-node=1` | One Ray process per node |
+| `#SBATCH --ntasks-per-node=1` | One `srun` task per node |
 | `#SBATCH --gres=gpu:1` | GPUs per node (Athena requires GPU jobs) |
-| `ip_head="${nodes[0]}:6379"` | Head address workers join |
-| `ray symmetric-run --min-nodes N` | Waits until all nodes join |
-| `--num-cpus` / `--num-gpus` | Must match SLURM allocation |
+| `ip_head=$head_node:6379` | Head hostname from `$SLURM_JOB_NODELIST` |
+| `--` before `python` | **Required** separator (Ray start opts vs entrypoint) |
+| `--min-nodes` | Wait until all nodes join |
+| `--temp-dir` | Short path on Cyfronet (not in upstream docs; avoids socket errors) |
 
 ### 2.2 Configure and submit
 
@@ -126,7 +127,7 @@ From `slurm-ray-verify-<jobid>.out`, confirm:
 - `Alive nodes: 2` (or your chosen N)
 - Cluster resources show expected CPU and GPU counts
 
-**If the job hangs:** check that `ip_head` uses the first hostname from `$SLURM_JOB_NODELIST` and that all nodes can reach port 6379. Ask your instructor about using the node IP instead of hostname.
+**If the job hangs:** check `slurm-*.out` for “Starting Ray head/worker”. Workers must reach the head’s **IP** (`RAY_ADDRESS` in the log). Ensure port 6379 is not blocked between compute nodes.
 
 **Checkpoint:** Submit your modified sbatch and include verification log excerpts.
 
@@ -208,7 +209,7 @@ To use **4 nodes** on Athena:
 #SBATCH --nodes=4
 ```
 
-Ensure `ray symmetric-run --min-nodes "$SLURM_JOB_NUM_NODES"` matches. More GPUs per node: `#SBATCH --gres=gpu:2` and tune `--gpus-per-trial` / `cpus-per-trial` accordingly.
+Ensure `#SBATCH --nodes` matches `--min-nodes`. More GPUs per node: `#SBATCH --gres=gpu:2` and tune `--gpus-per-trial` accordingly.
 
 ---
 

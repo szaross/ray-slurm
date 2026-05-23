@@ -40,7 +40,7 @@ bash scripts/setup_env.sh
 bash scripts/download_cifar.sh
 ```
 
-Requires Ray **≥ 2.49** for `ray symmetric-run` on SLURM.
+Multi-node jobs follow the [Ray SLURM guide](https://docs.ray.io/en/latest/cluster/vms/user-guides/community/slurm.html) — see `slurm/athena/*.sbatch` and `slurm/ares/*.sbatch`.
 
 ## Submit jobs
 

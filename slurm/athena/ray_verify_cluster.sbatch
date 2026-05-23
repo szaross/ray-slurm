@@ -22,16 +22,29 @@ source "${VENV_PATH:-${SCRATCH}/venv-ray}/bin/activate"
 export RAY_TMPDIR="/tmp/ray-${USER}"
 mkdir -p "$RAY_TMPDIR"
 
-nodes=($(scontrol show hostnames "$SLURM_JOB_NODELIST"))
-export ip_head="${nodes[0]}:6379"
-echo "Ray head address: $ip_head"
-echo "Nodes: ${nodes[*]}"
+# Getting the node names (Ray SLURM docs)
+nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
+nodes_array=($nodes)
+head_node=${nodes_array[0]}
+port=6379
+ip_head=$head_node:$port
+export ip_head
+echo "IP Head: $ip_head"
+echo "Nodes: ${nodes_array[*]}"
 
+# Start Ray cluster using symmetric-run on all nodes.
+# Symmetric run will automatically start Ray on all nodes and run the script ONLY the head node.
+# Use the '--' separator to separate Ray arguments and the entrypoint command.
+# The --min-nodes argument ensures all nodes join before running the script.
+#
+# All nodes (including head and workers) will execute this block.
+# The entrypoint will only run on the head node.
 srun --nodes="$SLURM_JOB_NUM_NODES" --ntasks="$SLURM_JOB_NUM_NODES" \
   ray symmetric-run \
-    --address "$ip_head" \
-    --min-nodes "$SLURM_JOB_NUM_NODES" \
-    --num-cpus="${SLURM_CPUS_PER_TASK}" \
-    --num-gpus="${SLURM_GPUS_PER_TASK:-1}" \
-    --temp-dir="$RAY_TMPDIR" \
-  -- python -u "$REPO_ROOT/scripts/verify_cluster.py"
+  --address "$ip_head" \
+  --min-nodes "$SLURM_JOB_NUM_NODES" \
+  --num-cpus="${SLURM_CPUS_PER_TASK}" \
+  --num-gpus="${SLURM_GPUS_PER_TASK}" \
+  --temp-dir="${RAY_TMPDIR}" \
+  -- \
+  python -u "$REPO_ROOT/scripts/verify_cluster.py"
