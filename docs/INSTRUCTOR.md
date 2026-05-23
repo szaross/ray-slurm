@@ -37,7 +37,8 @@ CPU runs are intentionally slower; students compare **relative** speedup, not eq
 |---------|--------------|-----|
 | `AF_UNIX path too long` | Ray temp under deep `$SCRATCH` | `export RAY_TMPDIR=/tmp/ray-$USER`, `--temp-dir` |
 | Workers never join | Wrong `ip_head` / firewall | Use head node hostname from `scontrol`; try IP from compute node |
-| Ray GPU = 0 on Athena | Missing `#SBATCH --gres=gpu:1` | Add GRES; check `SLURM_GPUS_PER_TASK` |
+| Ray GPU = 0 on Athena | Missing `#SBATCH --gres=gpu:1` | Add GRES; use `SLURM_GPUS_ON_NODE` if `SLURM_GPUS_PER_TASK` unset |
+| `SLURM_GPUS_PER_TASK: unbound variable` | `set -u` + Cyfronet omits that var | Sbatch uses `${SLURM_GPUS_PER_TASK:-${SLURM_GPUS_ON_NODE:-1}}` |
 | Tune hangs / OOM | `cpus-per-trial` too high | Lower in sbatch CLI (2 GPU, 4 CPU) |
 | CIFAR download fails on login | Network/policy | Run `download_cifar.sh` inside compute job |
 | `Got unexpected extra argument (symmetric-run)` | Missing `--` before entrypoint | Must be: `ray symmetric-run --address IP:6379 ... -- python script.py` |

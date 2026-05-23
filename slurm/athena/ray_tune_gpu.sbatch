@@ -37,7 +37,7 @@ srun --nodes="$SLURM_JOB_NUM_NODES" --ntasks="$SLURM_JOB_NUM_NODES" \
   --address "$ip_head" \
   --min-nodes "$SLURM_JOB_NUM_NODES" \
   --num-cpus="${SLURM_CPUS_PER_TASK}" \
-  --num-gpus="${SLURM_GPUS_PER_TASK}" \
+  --num-gpus="${SLURM_GPUS_PER_TASK:-${SLURM_GPUS_ON_NODE:-1}}" \
   --temp-dir="${RAY_TMPDIR}" \
   -- \
   python -u "$REPO_ROOT/scripts/run_tune.py" \
