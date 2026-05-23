@@ -7,7 +7,7 @@ VENV_DIR="${VENV_DIR:-${HOME}/venv-ray}"
 
 # Paired modules from: module avail torch  (on Ares)
 module load pytorch/1.10.0-foss-2021a-cuda-11.3.1
-module load torchvision/0.11.1-foss-2021a-cuda-11.3.1-pytorch-1.10.0
+module load torchvision/0.11.1-foss-2021a-cuda-11.3.1
 
 python3 -m venv --system-site-packages "$VENV_DIR"
 # shellcheck source=/dev/null
