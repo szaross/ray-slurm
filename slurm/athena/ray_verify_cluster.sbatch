@@ -21,6 +21,7 @@ source "${VENV_PATH:-${SCRATCH}/venv-ray}/bin/activate"
 
 export RAY_TMPDIR="/tmp/ray-${USER}"
 mkdir -p "$RAY_TMPDIR"
+export RAY_BACKEND_LOG_LEVEL="${RAY_BACKEND_LOG_LEVEL:-error}"
 
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
 nodes_array=($nodes)
@@ -39,7 +40,8 @@ echo "Batch script running on: $(hostname -s)"
 ray_cluster_cleanup() {
   for node in "${nodes_array[@]}"; do
     echo "Stopping Ray on ${node}..."
-    srun --overlap --nodes=1 --ntasks=1 -w "$node" --cpu-bind=none ray stop || true
+    srun --overlap --nodes=1 --ntasks=1 -w "$node" --cpu-bind=none \
+      bash -c 'ray stop >/dev/null 2>&1' || true
   done
 }
 trap ray_cluster_cleanup EXIT

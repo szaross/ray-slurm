@@ -14,14 +14,11 @@ import ray
 
 
 def main() -> int:
-    print("verify_cluster: starting...", flush=True)
     connected_here = False
     if not ray.is_initialized():
         address = os.environ.get("RAY_ADDRESS", "auto")
-        print(f"verify_cluster: ray.init(address={address!r})", flush=True)
-        ray.init(address=address)
+        ray.init(address=address, logging_level="error")
         connected_here = True
-    print("verify_cluster: connected.", flush=True)
 
     exit_code = 0
     try:
@@ -31,12 +28,15 @@ def main() -> int:
 
         print("=== Ray cluster verification ===")
         print(f"Alive nodes: {len(alive)}")
-        print("Cluster resources:", json.dumps(resources, indent=2, sort_keys=True))
-
-        for i, node in enumerate(alive):
-            res = node.get("Resources", {})
-            print(f"\nNode {i}: {node.get('NodeManagerAddress', '?')}")
-            print(f"  Resources: {res}")
+        print(
+            "Cluster resources:",
+            json.dumps(
+                {k: v for k, v in resources.items() if not k.startswith("node:")},
+                indent=2,
+                sort_keys=True,
+            ),
+        )
+        print(f"Nodes: {[n.get('NodeManagerAddress') for n in alive]}")
 
         cpu = resources.get("CPU", 0)
         gpu = resources.get("GPU", 0)
