@@ -21,14 +21,18 @@ source "${VENV_PATH:-${SCRATCH}/venv-ray}/bin/activate"
 
 export RAY_TMPDIR="/tmp/ray-${USER}"
 mkdir -p "$RAY_TMPDIR"
+export RAY_SYMMETRIC_RUN_CLUSTER_WAIT_TIMEOUT="${RAY_SYMMETRIC_RUN_CLUSTER_WAIT_TIMEOUT:-120}"
 
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
 nodes_array=($nodes)
 head_node=${nodes_array[0]}
 port=6379
-ip_head=$head_node:$port
+head_ip=$(srun --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
+  bash -c 'hostname -I | awk "{print \$1}"' | tr -d '[:space:]')
+ip_head="${head_ip}:${port}"
 export ip_head
-echo "IP Head: $ip_head"
+echo "Head node: ${head_node}"
+echo "IP Head: ${ip_head}"
 echo "Nodes: ${nodes_array[*]}"
 echo "Job started at: $(date -Is)"
 

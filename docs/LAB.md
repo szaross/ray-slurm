@@ -103,7 +103,7 @@ Open [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_clust
 | `#SBATCH --nodes=N` | Number of machines in the Ray cluster |
 | `#SBATCH --ntasks-per-node=1` | One `srun` task per node |
 | `#SBATCH --gres=gpu:1` | GPUs per node (Athena requires GPU jobs) |
-| `ip_head=$head_node:6379` | Head hostname from `$SLURM_JOB_NODELIST` |
+| `ip_head=<IP>:6379` | Head **compute IP** from `hostname -I` on the head node (not short hostname) |
 | `--` before `python` | **Required** separator (Ray start opts vs entrypoint) |
 | `--min-nodes` | Wait until all nodes join |
 | `--temp-dir` | Short path on Cyfronet (not in upstream docs; avoids socket errors) |

@@ -40,6 +40,8 @@ CPU runs are intentionally slower; students compare **relative** speedup, not eq
 | Ray GPU = 0 on Athena | Missing `#SBATCH --gres=gpu:1` | Add GRES; use `SLURM_GPUS_ON_NODE` if `SLURM_GPUS_PER_TASK` unset |
 | `SLURM_GPUS_PER_TASK: unbound variable` | `set -u` + Cyfronet omits that var | Sbatch uses `${SLURM_GPUS_PER_TASK:-${SLURM_GPUS_ON_NODE:-1}}` |
 | `Unable to satisfy cpu bind request` | Nested `srun` in sbatch vs CPU binding | Inner `srun` uses `--cpu-bind=none` |
+| `Timed out waiting for head` / stuck at `1/2 nodes` | `--address` uses short hostname (`t0002:6379`) | Sbatch resolves head `hostname -I` → `172.23.x.x:6379` |
+| Metrics exporter `rpc_code: 14` | Noisy agent on HPC | Usually harmless; head/worker join is the real issue |
 | Tune hangs / OOM | `cpus-per-trial` too high | Lower in sbatch CLI (2 GPU, 4 CPU) |
 | CIFAR download fails on login | Network/policy | Run `download_cifar.sh` inside compute job |
 | `Got unexpected extra argument (symmetric-run)` | Broken `ray symmetric-run` CLI argv parsing | Use `python -m ray.scripts.symmetric_run ... -- python script.py` (sbatch already do) or `pip install -U 'ray[tune]>=2.52'` |
