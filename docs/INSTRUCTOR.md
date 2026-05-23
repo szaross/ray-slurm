@@ -40,6 +40,7 @@ CPU runs are intentionally slower; students compare **relative** speedup, not eq
 | Ray GPU = 0 on Athena | Missing `#SBATCH --gres=gpu:1` | Add GRES; use `SLURM_GPUS_ON_NODE` if `SLURM_GPUS_PER_TASK` unset |
 | `SLURM_GPUS_PER_TASK: unbound variable` | `set -u` + Cyfronet omits that var | Sbatch uses `${SLURM_GPUS_PER_TASK:-${SLURM_GPUS_ON_NODE:-1}}` |
 | `Unable to satisfy cpu bind request` | Nested `srun` in sbatch vs CPU binding | Inner `srun` uses `--cpu-bind=none` |
+| Hang after workers at `ray status` / verify | Second `srun` on head waits for CPUs held by `ray start --block` | Run Python on batch node or `srun --overlap` |
 | `Timed out waiting for head` / stuck at `1/2 nodes` with `symmetric-run` | Worker GCS check races / Athena networking | Lab sbatch uses classic `ray start` head, then workers (staggered) |
 | Worker cannot join | Wrong address | `--address` must be head compute IP (`172.23.x.x:6379`) |
 | Metrics exporter `rpc_code: 14` | Noisy agent on HPC | Usually harmless; head/worker join is the real issue |

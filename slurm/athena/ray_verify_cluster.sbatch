@@ -34,11 +34,12 @@ ray_num_gpus="${SLURM_GPUS_PER_TASK:-${SLURM_GPUS_ON_NODE:-1}}"
 echo "Head node: ${head_node}"
 echo "IP Head: ${ip_head}"
 echo "Nodes: ${nodes_array[*]}"
+echo "Batch script running on: $(hostname -s)"
 
 ray_cluster_cleanup() {
   for node in "${nodes_array[@]}"; do
     echo "Stopping Ray on ${node}..."
-    srun --nodes=1 --ntasks=1 -w "$node" --cpu-bind=none ray stop || true
+    srun --overlap --nodes=1 --ntasks=1 -w "$node" --cpu-bind=none ray stop || true
   done
 }
 trap ray_cluster_cleanup EXIT
@@ -61,7 +62,6 @@ for worker in "${nodes_array[@]:1}"; do
     ray start --address="${ip_head}" \
     --num-cpus="${SLURM_CPUS_PER_TASK}" \
     --num-gpus="${ray_num_gpus}" \
-    --temp-dir="${RAY_TMPDIR}" \
     --disable-usage-stats \
     --block &
   sleep 10
@@ -70,13 +70,17 @@ done
 echo "Waiting for workers to register..."
 sleep 15
 
-echo "Ray status on head:"
-srun --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
-  env RAY_ADDRESS="${ip_head}" ray status || true
-
-echo "Running verify_cluster.py on ${head_node}..."
-srun --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
-  env RAY_ADDRESS="${ip_head}" \
+export RAY_ADDRESS="${ip_head}"
+# Do not use a plain second srun on the head: Ray already holds that node's CPUs (--block).
+# Run verify on the batch node if we are the head, else srun --overlap.
+if [[ "$(hostname -s)" == "${head_node}" ]]; then
+  echo "Running verify_cluster.py on batch node ${head_node}..."
   python -u "$REPO_ROOT/scripts/verify_cluster.py"
+else
+  echo "Running verify_cluster.py via srun --overlap on ${head_node}..."
+  srun --overlap --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
+    env RAY_ADDRESS="${ip_head}" \
+    python -u "$REPO_ROOT/scripts/verify_cluster.py"
+fi
 
-echo "Verify job step finished at: $(date -Is)"
+echo "Verify finished at: $(date -Is)"

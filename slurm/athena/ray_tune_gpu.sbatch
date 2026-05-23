@@ -38,7 +38,7 @@ echo "Job started at: $(date -Is)"
 
 ray_cluster_cleanup() {
   for node in "${nodes_array[@]}"; do
-    srun --nodes=1 --ntasks=1 -w "$node" --cpu-bind=none ray stop || true
+    srun --overlap --nodes=1 --ntasks=1 -w "$node" --cpu-bind=none ray stop || true
   done
 }
 trap ray_cluster_cleanup EXIT
@@ -58,7 +58,6 @@ for worker in "${nodes_array[@]:1}"; do
     ray start --address="${ip_head}" \
     --num-cpus="${SLURM_CPUS_PER_TASK}" \
     --num-gpus="${ray_num_gpus}" \
-    --temp-dir="${RAY_TMPDIR}" \
     --disable-usage-stats \
     --block &
   sleep 10
@@ -66,12 +65,21 @@ done
 
 sleep 15
 
-srun --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
-  env RAY_ADDRESS="${ip_head}" \
+export RAY_ADDRESS="${ip_head}"
+if [[ "$(hostname -s)" == "${head_node}" ]]; then
   python -u "$REPO_ROOT/scripts/run_tune.py" \
     --gpus-per-trial 1 \
     --cpus-per-trial 2 \
     --data-dir "${SCRATCH}/data/cifar10" \
     --storage-path "${SCRATCH}/ray_results"
+else
+  srun --overlap --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
+    env RAY_ADDRESS="${ip_head}" \
+    python -u "$REPO_ROOT/scripts/run_tune.py" \
+      --gpus-per-trial 1 \
+      --cpus-per-trial 2 \
+      --data-dir "${SCRATCH}/data/cifar10" \
+      --storage-path "${SCRATCH}/ray_results"
+fi
 
 echo "Job finished at: $(date -Is)"
