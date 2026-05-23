@@ -40,7 +40,7 @@ On Ares, if PyTorch is not available via modules, use the same venv in `$HOME/ve
 
 ```bash
 source ${SCRATCH}/venv-ray/bin/activate   # or $HOME/venv-ray
-ray --version    # must be >= 2.49 (`ray symmetric-run --help`)
+ray --version    # Ray 2.x
 ```
 
 Ray’s default session path under deep `$SCRATCH` trees can exceed the Unix socket path limit (~107 bytes). Always use a **short** temp directory:
@@ -96,7 +96,7 @@ This is the core graded task: configure SLURM so Ray spans **multiple nodes**.
 
 ### 2.1 Understand the template
 
-Open [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_cluster.sbatch) — it follows the [Ray SLURM guide](https://docs.ray.io/en/latest/cluster/vms/user-guides/community/slurm.html) (`ip_head`, `srun`, `python -m ray.scripts.symmetric_run`, `--` before `python`).
+Open [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_cluster.sbatch) — multi-node startup uses `ray start --head` on the first node, `ray start --address=...` on workers (see [Ray SLURM guide](https://docs.ray.io/en/latest/cluster/vms/user-guides/community/slurm.html)), then runs Python on the head only.
 
 | Setting | Why it matters |
 |--------|----------------|
@@ -107,7 +107,8 @@ Open [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_clust
 | `--` before `python` | **Required** separator (Ray start opts vs entrypoint) |
 | `--min-nodes` | Wait until all nodes join |
 | `--temp-dir` | Short path on Cyfronet (not in upstream docs; avoids socket errors) |
-| `srun --cpu-bind=none` | Required on Cyfronet when `srun` runs inside `sbatch` |
+| `srun --cpu-bind=none` | Required on Cyfronet for every `srun` inside `sbatch` |
+| Head then workers | Head starts first (`sleep 30`), then each worker (`sleep 10` between) |
 
 ### 2.2 Configure and submit
 
@@ -192,7 +193,7 @@ Fill in after both jobs complete:
 
 1. Why must the CPU baseline run on Ares instead of Athena?
 2. What limits how many Tune trials run in parallel on your cluster?
-3. What happens if `--num-cpus` passed to `ray symmetric-run` is **larger** than `SLURM_CPUS_PER_TASK`?
+3. What happens if `--num-cpus` passed to `ray start` is **larger** than `SLURM_CPUS_PER_TASK`?
 
 ### Deliverables
 

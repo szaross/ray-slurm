@@ -40,7 +40,7 @@ bash scripts/setup_env.sh
 bash scripts/download_cifar.sh
 ```
 
-Multi-node jobs follow the [Ray SLURM guide](https://docs.ray.io/en/latest/cluster/vms/user-guides/community/slurm.html) — see `slurm/athena/*.sbatch` and `slurm/ares/*.sbatch`.
+Multi-node jobs use staggered `ray start --head` / `ray start --address=...` per node (Athena `symmetric-run` was unreliable). See `slurm/athena/*.sbatch`.
 
 ## Submit jobs
 

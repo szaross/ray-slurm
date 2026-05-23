@@ -16,7 +16,7 @@ echo "=== SBATCH templates present ==="
 for f in slurm/athena/ray_verify_cluster.sbatch slurm/athena/ray_tune_gpu.sbatch \
          slurm/ares/ray_verify_cluster.sbatch slurm/ares/ray_tune_cpu.sbatch; do
   test -f "$f" || { echo "Missing $f"; exit 1; }
-  grep -q '<GRANT>' "$f" && grep -q 'ray.scripts.symmetric_run' "$f" && echo "OK: $f"
+  grep -q '<GRANT>' "$f" && grep -q 'ray start --head' "$f" && echo "OK: $f"
 done
 
 echo "All local checks passed."

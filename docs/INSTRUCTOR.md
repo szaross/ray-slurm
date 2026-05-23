@@ -2,7 +2,7 @@
 
 ## Overview
 
-Students configure **multi-node Ray on Athena** via SLURM (`ray symmetric-run` in [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_cluster.sbatch)), then run the shared [`scripts/run_tune.py`](../scripts/run_tune.py) twice:
+Students configure **multi-node Ray on Athena** via SLURM (classic `ray start` head/worker in [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_cluster.sbatch)), then run the shared [`scripts/run_tune.py`](../scripts/run_tune.py) twice:
 
 | Run | System | SLURM template | Tune GPUs |
 |-----|--------|----------------|-----------|
@@ -40,13 +40,12 @@ CPU runs are intentionally slower; students compare **relative** speedup, not eq
 | Ray GPU = 0 on Athena | Missing `#SBATCH --gres=gpu:1` | Add GRES; use `SLURM_GPUS_ON_NODE` if `SLURM_GPUS_PER_TASK` unset |
 | `SLURM_GPUS_PER_TASK: unbound variable` | `set -u` + Cyfronet omits that var | Sbatch uses `${SLURM_GPUS_PER_TASK:-${SLURM_GPUS_ON_NODE:-1}}` |
 | `Unable to satisfy cpu bind request` | Nested `srun` in sbatch vs CPU binding | Inner `srun` uses `--cpu-bind=none` |
-| `Timed out waiting for head` / stuck at `1/2 nodes` | `--address` uses short hostname (`t0002:6379`) | Sbatch resolves head `hostname -I` → `172.23.x.x:6379` |
+| `Timed out waiting for head` / stuck at `1/2 nodes` with `symmetric-run` | Worker GCS check races / Athena networking | Lab sbatch uses classic `ray start` head, then workers (staggered) |
+| Worker cannot join | Wrong address | `--address` must be head compute IP (`172.23.x.x:6379`) |
 | Metrics exporter `rpc_code: 14` | Noisy agent on HPC | Usually harmless; head/worker join is the real issue |
 | Tune hangs / OOM | `cpus-per-trial` too high | Lower in sbatch CLI (2 GPU, 4 CPU) |
 | CIFAR download fails on login | Network/policy | Run `download_cifar.sh` inside compute job |
-| `Got unexpected extra argument (symmetric-run)` | Broken `ray symmetric-run` CLI argv parsing | Use `python -m ray.scripts.symmetric_run ... -- python script.py` (sbatch already do) or `pip install -U 'ray[tune]>=2.52'` |
-| `Missing option '--address'` | Address not set | Set `ip_head=$head_node:6379` per Ray docs |
-| `symmetric-run` not found | Ray < 2.49 | Re-run `setup_env.sh` |
+| `Got unexpected extra argument (symmetric-run)` | Broken `ray symmetric-run` CLI | Lab uses classic `ray start` in sbatch instead |
 | `RuntimeError: can't register atexit after shutdown` after verify | Ray log thread vs interpreter exit | Fixed in `verify_cluster.py` (`ray.shutdown()`); pull latest |
 | Ray reports 128 CPU / huge memory on one GPU | `ray start` without `--num-cpus` | Use SLURM templates / limit cpus to match allocation |
 | Ares: no torch | Module only on Athena | `pip install torch torchvision` in shared venv on Ares job |

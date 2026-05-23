@@ -19,7 +19,6 @@ source "${VENV_PATH:-${HOME}/venv-ray}/bin/activate"
 
 export RAY_TMPDIR="/tmp/ray-${USER}"
 mkdir -p "$RAY_TMPDIR"
-export RAY_SYMMETRIC_RUN_CLUSTER_WAIT_TIMEOUT="${RAY_SYMMETRIC_RUN_CLUSTER_WAIT_TIMEOUT:-120}"
 
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
 nodes_array=($nodes)
@@ -28,18 +27,41 @@ port=6379
 head_ip=$(srun --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
   bash -c 'hostname -I | awk "{print \$1}"' | tr -d '[:space:]')
 ip_head="${head_ip}:${port}"
-export ip_head
+
 echo "Head node: ${head_node}"
 echo "IP Head: ${ip_head}"
 echo "Nodes: ${nodes_array[*]}"
 
-srun --nodes="$SLURM_JOB_NUM_NODES" --ntasks="$SLURM_JOB_NUM_NODES" --ntasks-per-node=1 \
-  --cpu-bind=none \
-  python -m ray.scripts.symmetric_run \
-  --address "$ip_head" \
-  --min-nodes "$SLURM_JOB_NUM_NODES" \
+ray_cluster_cleanup() {
+  for node in "${nodes_array[@]}"; do
+    srun --nodes=1 --ntasks=1 -w "$node" --cpu-bind=none ray stop || true
+  done
+}
+trap ray_cluster_cleanup EXIT
+
+srun --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
+  ray start --head --node-ip-address="${head_ip}" --port="${port}" \
   --num-cpus="${SLURM_CPUS_PER_TASK}" \
-  --num-gpus="${SLURM_GPUS_PER_TASK:-0}" \
+  --num-gpus=0 \
   --temp-dir="${RAY_TMPDIR}" \
-  -- \
+  --disable-usage-stats \
+  --block &
+
+sleep 30
+
+for worker in "${nodes_array[@]:1}"; do
+  srun --nodes=1 --ntasks=1 -w "$worker" --cpu-bind=none \
+    ray start --address="${ip_head}" \
+    --num-cpus="${SLURM_CPUS_PER_TASK}" \
+    --num-gpus=0 \
+    --temp-dir="${RAY_TMPDIR}" \
+    --disable-usage-stats \
+    --block &
+  sleep 10
+done
+
+sleep 15
+
+srun --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
+  env RAY_ADDRESS="${ip_head}" \
   python -u "$REPO_ROOT/scripts/verify_cluster.py"
