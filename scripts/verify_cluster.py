@@ -45,8 +45,6 @@ def main() -> int:
             exit_code = 1
         else:
             print("\nOK: Ray sees at least one node with CPUs.")
-            if gpu == 0:
-                print("NOTE: GPU count is 0 (expected on Ares CPU runs).")
     finally:
         if connected_here:
             ray.shutdown()

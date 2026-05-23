@@ -1,76 +1,82 @@
-# Lab: Ray on SLURM (Athena — GPU vs CPU tuning)
+# Lab: Ray on SLURM (Athena)
 
-## Objectives
+## Overview
 
-After this lab you should be able to:
+You will:
 
-1. Start and verify a **multi-node Ray cluster** under SLURM on **Athena**.
-2. Run a provided **Ray Tune** hyperparameter sweep with **GPU trials** and **CPU trials** on the same cluster.
-3. Compare wall-clock time, throughput, and best validation metrics between the two runs.
+1. Configure and run a **multi-node Ray cluster** under SLURM on [Athena](https://docs.hpc.cyfronet.pl/supercomputers/athena/).
+2. Run two **Ray Tune** hyperparameter sweeps on that cluster: **GPU trials** and **CPU trials**.
+3. Compare results in a short report.
 
-You do **not** need to implement hyperparameter tuning logic—the workload is in [`scripts/run_tune.py`](../scripts/run_tune.py).
+The tuning workload is provided in [`scripts/run_tune.py`](../scripts/run_tune.py). Your main task is **SLURM + Ray cluster setup**, not writing the tuner.
 
-## Prerequisites
+| You configure | Provided for you |
+|---------------|------------------|
+| `#SBATCH` account, nodes, resources in [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_cluster.sbatch) | CIFAR-10 CNN + search space |
+| Multi-node `ray start` (via shared [`slurm/athena/ray_cluster.sh`](../slurm/athena/ray_cluster.sh)) | [`scripts/run_tune.py`](../scripts/run_tune.py), Tune schedulers |
+| Submit verify + tune jobs | GPU/CPU tune sbatch templates |
 
-- Active [PLGrid](https://www.plgrid.pl/) grant with access to **Athena** (`-gpu-a100`).
-- SSH: `athena.cyfronet.pl`.
-- Clone this repository to `$HOME` or `$SCRATCH`.
-- Read [Athena documentation](https://docs.hpc.cyfronet.pl/supercomputers/athena/).
+## Before you start
 
-Replace `<GRANT>` in SLURM scripts with your grant name (e.g. `plg12345` → account `plg12345-gpu-a100`).
+- PLGrid grant with Athena GPU access (`<GRANT>-gpu-a100`).
+- SSH: `athena.cyfronet.pl`
+- Clone this repo (e.g. `git clone … $HOME/ray-slurm`).
+- Replace `<GRANT>` in all `slurm/athena/*.sbatch` files.
 
-> **Reminder — where to run commands**
->
-> | What | Where |
-> |------|--------|
-> | `sbatch slurm/athena/*.sbatch` | **Login node** (`athena.cyfronet.pl`, after `ssh`) |
-> | `setup_env.sh`, `download_cifar.sh`, interactive `srun ... --pty` | **Compute node** (inside an allocated job) |
->
-> Always submit batch jobs from the **login node**, from the repo directory (e.g. `cd $HOME/ray-slurm` then `sbatch ...`). Do **not** run `sbatch` from inside an interactive compute session.
+**Where to run commands**
+
+| Command | Run on |
+|---------|--------|
+| `sbatch slurm/athena/*.sbatch` | **Login node** (after `ssh athena.cyfronet.pl`) |
+| `bash scripts/setup_env.sh`, `download_cifar.sh`, `srun … --pty` | **Compute node** (inside an allocated job) |
+
+From the login node: `cd $HOME/ray-slurm` before every `sbatch`. Do **not** submit `sbatch` from inside an interactive `srun` session.
 
 ---
 
-## Part 0 — Environment setup
+## Setup (compute node)
 
-Run Part 0 inside **interactive compute jobs** on Athena, not on login nodes.
+Run once inside a GPU compute job (`srun … --pty` or a short batch job).
 
-### 0.1 Python virtualenv (on `$SCRATCH`)
-
-The venv is created on **`$SCRATCH/venv-ray`**, not in `$HOME` (faster I/O, avoids home quota).
+### Virtualenv on `$SCRATCH`
 
 ```bash
-cd $HOME/ray-slurm   # repo can stay in $HOME; venv goes to scratch
+cd $HOME/ray-slurm
 bash scripts/setup_env.sh
 source $SCRATCH/venv-ray/bin/activate
 python -c "import torch, ray; print('ok')"
 ```
 
-If you previously used `$HOME/venv-ray`, delete it and rerun `setup_env.sh` so everything uses scratch.
+The venv lives at **`$SCRATCH/venv-ray`** (not `$HOME`). If you created `$HOME/venv-ray` earlier, remove it and rerun `setup_env.sh`.
 
-### 0.2 Ray temp directory
+### Ray session directory
 
 ```bash
 export RAY_TMPDIR="/tmp/ray-${USER}"
 mkdir -p "$RAY_TMPDIR"
 ```
 
-### 0.3 Download CIFAR-10
+Batch scripts set this automatically; use the same path in interactive tests.
+
+### CIFAR-10 data
 
 ```bash
 source $SCRATCH/venv-ray/bin/activate
 bash scripts/download_cifar.sh
 ```
 
+Data lands in `$SCRATCH/data/cifar10`.
+
 ---
 
-## Part 1 — Single-node Ray on Athena (warm-up)
+## Optional: single-node warm-up
+
+Allocate one node and check Ray locally before the multi-node exercise:
 
 ```bash
 srun -p plgrid-gpu-a100 -N 1 -n 1 --cpus-per-task=16 --mem=128000 \
   -A <GRANT>-gpu-a100 --gres=gpu:1 --time=01:00:00 --pty /bin/bash -l
 ```
-
-On the compute node:
 
 ```bash
 module load PyTorch-Geometric/2.5.1
@@ -84,65 +90,63 @@ ray stop
 
 ---
 
-## Part 2 — Multi-node Ray on Athena (main exercise)
+## Main exercise: multi-node Ray
 
-Configure and submit [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_cluster.sbatch) (set `#SBATCH --account=<GRANT>-gpu-a100`).
+1. Edit [`slurm/athena/ray_verify_cluster.sbatch`](../slurm/athena/ray_verify_cluster.sbatch): set `#SBATCH --account=<GRANT>-gpu-a100` and check `nodes`, `cpus-per-task`, `gres` match your goals (default: 2 nodes, 16 CPUs, 1 GPU per node).
+2. Submit from the login node:
 
-On the **login node**:
+   ```bash
+   sbatch slurm/athena/ray_verify_cluster.sbatch
+   ```
 
-```bash
-cd $HOME/ray-slurm
-sbatch slurm/athena/ray_verify_cluster.sbatch
-```
+3. Inspect `slurm-ray-verify-<jobid>.out`. You should see:
+   - `RAY_ADDRESS=172.23.x.x:6379` (head **IP**, not short hostname)
+   - `Alive nodes: 2`
+   - Cluster resources listing CPUs and GPUs
 
-Confirm in `slurm-ray-verify-<jobid>.out`: **`Alive nodes: 2`**.
+**Troubleshooting**
 
-Key ideas: head **IP** (`172.23.x.x:6379`), staggered `ray start`, verify runs on the **batch node** (not a second competing `srun`).
+- Workers stuck at 1/2 nodes: `--address` must use the head compute IP from the log.
+- Job hangs at verify: the template runs Python on the batch/head node (not a second blocking `srun` on an occupied head).
+- Ray daemon details: see `$RAY_TMPDIR/ray-start-<jobid>-<node>.log` on the nodes if the cluster fails to start.
+
+**Deliverable checkpoint:** your edited verify sbatch and log excerpts showing two alive nodes.
 
 ---
 
-## Part 3 — GPU hyperparameter sweep
+## GPU hyperparameter sweep
 
-Same cluster layout as Part 2; trials use **one GPU each**.
-
-From the **login node**:
+Uses the same 2-node layout; Tune requests **1 GPU per trial**.
 
 ```bash
-cd $HOME/ray-slurm
 sbatch slurm/athena/ray_tune_gpu.sbatch
 ```
 
-Results: `$SCRATCH/ray_results/cifar10_tune_lab_gpu/`
-
-```bash
-tail -f slurm-ray-tune-gpu-<jobid>.out
-```
+- Logs: `slurm-ray-tune-gpu-<jobid>.out` (Tune trial progress + `=== Sweep finished ===` summary)
+- Results: `$SCRATCH/ray_results/cifar10_tune_lab_gpu/`
 
 ---
 
-## Part 4 — CPU hyperparameter sweep (also on Athena)
+## CPU hyperparameter sweep
 
-Athena jobs must **request a GPU** in SLURM (`#SBATCH --gres=gpu:1`). The CPU comparison still runs on Athena: Ray sees the GPUs, but Tune is told to use **CPU only** (`--gpus-per-trial 0`).
-
-From the **login node**:
+Same cluster and Athena policy: jobs still use `#SBATCH --gres=gpu:1`, but Tune uses **`--gpus-per-trial 0`** (training on CPU).
 
 ```bash
-cd $HOME/ray-slurm
 sbatch slurm/athena/ray_tune_cpu.sbatch
 ```
 
-Results: `$SCRATCH/ray_results/cifar10_tune_lab_cpu/`
+- Results: `$SCRATCH/ray_results/cifar10_tune_lab_cpu/`
 
-Expect **longer** wall time than Part 3. The cluster setup (nodes, `ray start`) is the same; only the Tune resource flags change.
-
-| Script | Tune GPUs per trial | Tune CPUs per trial | Results folder |
-|--------|---------------------|---------------------|----------------|
+| Script | `gpus-per-trial` | `cpus-per-trial` | Results folder |
+|--------|------------------|------------------|----------------|
 | `ray_tune_gpu.sbatch` | 1 | 2 | `cifar10_tune_lab_gpu` |
 | `ray_tune_cpu.sbatch` | 0 | 4 | `cifar10_tune_lab_cpu` |
 
+Compare both sweeps in your report (wall time, metrics, and what Ray/Tune printed).
+
 ---
 
-## Part 5 — Analysis and deliverables
+## Report
 
 ### Comparison table
 
@@ -152,22 +156,22 @@ Expect **longer** wall time than Part 3. The cluster setup (nodes, `ray start`) 
 | `#SBATCH --gres` | | |
 | `gpus-per-trial` / `cpus-per-trial` | | |
 | `num_samples` | | |
-| Wall time (minutes) | | |
+| Sweep wall time (minutes) | | |
 | Best validation `loss` | | |
 | Best validation `accuracy` | | |
-| Ray cluster `CPU` / `GPU` | | |
+| Ray cluster CPUs / GPUs (from verify or Tune log) | | |
 
 ### Short answers (½–1 page)
 
-1. Why do we still use `#SBATCH --gres=gpu:1` for the CPU sweep on Athena?
-2. What limits how many Tune trials run in parallel on your cluster?
+1. Why does the CPU sweep still request a GPU in SLURM on Athena?
+2. What limits how many Tune trials run **in parallel** on your cluster?
 3. What happens if `--num-cpus` passed to `ray start` is **larger** than `SLURM_CPUS_PER_TASK`?
 
 ### Deliverables
 
-1. Your modified `ray_verify_cluster.sbatch` with grant filled in.
-2. `slurm-*.out` excerpts: verify output + both tune summaries.
-3. Completed comparison table and short answers.
+1. Modified `ray_verify_cluster.sbatch` with your grant.
+2. Log excerpts: verify output + both sweep summaries (`=== Sweep finished ===`).
+3. Completed table and short answers.
 
 ---
 

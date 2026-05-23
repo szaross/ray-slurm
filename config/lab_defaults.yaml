@@ -1,6 +1,7 @@
 # Shared lab defaults — keep runs within ~1–2 h on 2-node Athena (2×1 GPU).
 # Adjust after validation on your grant.
 
+# Overridden by sbatch: cifar10_tune_lab_gpu / cifar10_tune_lab_cpu
 experiment_name: cifar10_tune_lab
 
 data_dir: null  # null => use $SCRATCH/data/cifar10 or --data-dir

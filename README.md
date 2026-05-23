@@ -1,27 +1,28 @@
 # ray-slurm
 
-Lab materials for **Ray** and **Ray Tune** on Cyfronet **Athena** (SLURM): multi-node cluster setup + **GPU vs CPU** hyperparameter sweeps on the same system.
+Lab materials for **Ray** and **Ray Tune** on Cyfronet **Athena** (SLURM): multi-node cluster setup and **GPU vs CPU** hyperparameter sweeps.
 
-**Student instructions:** [docs/LAB.md](docs/LAB.md)
+- **Students:** [docs/LAB.md](docs/LAB.md)
+- **Instructors:** [docs/INSTRUCTOR.md](docs/INSTRUCTOR.md)
 
-**Instructor notes:** [docs/INSTRUCTOR.md](docs/INSTRUCTOR.md)
-
-## Repository layout
+## Layout
 
 ```
 config/lab_defaults.yaml
-scripts/run_tune.py          # CIFAR-10 Ray Tune workload
+scripts/run_tune.py
 scripts/verify_cluster.py
 scripts/setup_env.sh
-slurm/athena/                # verify, ray_tune_gpu, ray_tune_cpu
+slurm/athena/ray_cluster.sh      # shared cluster logic (sourced by sbatch)
+slurm/athena/ray_verify_cluster.sbatch
+slurm/athena/ray_tune_gpu.sbatch
+slurm/athena/ray_tune_cpu.sbatch
 docs/LAB.md
 ```
 
-## Quickstart (Athena)
+## Quickstart
 
-Create the venv once on a **compute node** (`bash scripts/setup_env.sh` → `$SCRATCH/venv-ray`).
-
-Submit all `sbatch` jobs from the **login node** (not from inside `srun`):
+1. On a **compute node**: `bash scripts/setup_env.sh` → venv at `$SCRATCH/venv-ray`
+2. On the **login node**:
 
 ```bash
 cd $HOME/ray-slurm

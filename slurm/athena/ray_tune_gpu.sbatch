@@ -15,75 +15,22 @@ set -euo pipefail
 
 REPO_ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 cd "$REPO_ROOT"
+# shellcheck source=ray_cluster.sh
+source "${REPO_ROOT}/slurm/athena/ray_cluster.sh"
 
-module load PyTorch-Geometric/2.5.1
-source "${VENV_PATH:-${SCRATCH}/venv-ray}/bin/activate"
+ray_cluster_env
+export RAY_DEDUP_LOGS="${RAY_DEDUP_LOGS:-1}"
+ray_cluster_init
+ray_cluster_install_trap
 
-export RAY_TMPDIR="/tmp/ray-${USER}"
-mkdir -p "$RAY_TMPDIR"
-export RAY_BACKEND_LOG_LEVEL="${RAY_BACKEND_LOG_LEVEL:-error}"
-
-nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
-nodes_array=($nodes)
-head_node=${nodes_array[0]}
-port=6379
-head_ip=$(srun --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
-  bash -c 'hostname -I | awk "{print \$1}"' | tr -d '[:space:]')
-ip_head="${head_ip}:${port}"
-ray_num_gpus="${SLURM_GPUS_PER_TASK:-${SLURM_GPUS_ON_NODE:-1}}"
-
-echo "Head node: ${head_node}"
-echo "IP Head: ${ip_head}"
-echo "Nodes: ${nodes_array[*]}"
 echo "Job started at: $(date -Is)"
+ray_cluster_start
 
-ray_cluster_cleanup() {
-  for node in "${nodes_array[@]}"; do
-    srun --overlap --nodes=1 --ntasks=1 -w "$node" --cpu-bind=none \
-      bash -c 'ray stop >/dev/null 2>&1' || true
-  done
-}
-trap ray_cluster_cleanup EXIT
-
-srun --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
-  ray start --head --node-ip-address="${head_ip}" --port="${port}" \
-  --num-cpus="${SLURM_CPUS_PER_TASK}" \
-  --num-gpus="${ray_num_gpus}" \
-  --temp-dir="${RAY_TMPDIR}" \
-  --disable-usage-stats \
-  --block &
-
-sleep 30
-
-for worker in "${nodes_array[@]:1}"; do
-  srun --nodes=1 --ntasks=1 -w "$worker" --cpu-bind=none \
-    ray start --address="${ip_head}" \
-    --num-cpus="${SLURM_CPUS_PER_TASK}" \
-    --num-gpus="${ray_num_gpus}" \
-    --disable-usage-stats \
-    --block &
-  sleep 10
-done
-
-sleep 15
-
-export RAY_ADDRESS="${ip_head}"
-if [[ "$(hostname -s)" == "${head_node}" ]]; then
-  python -u "$REPO_ROOT/scripts/run_tune.py" \
-    --gpus-per-trial 1 \
-    --cpus-per-trial 2 \
-    --experiment-name cifar10_tune_lab_gpu \
-    --data-dir "${SCRATCH}/data/cifar10" \
-    --storage-path "${SCRATCH}/ray_results"
-else
-  srun --overlap --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
-    env RAY_ADDRESS="${ip_head}" \
-    python -u "$REPO_ROOT/scripts/run_tune.py" \
-      --gpus-per-trial 1 \
-      --cpus-per-trial 2 \
-      --experiment-name cifar10_tune_lab_gpu \
-      --data-dir "${SCRATCH}/data/cifar10" \
-      --storage-path "${SCRATCH}/ray_results"
-fi
+ray_cluster_run_on_head python -u "$REPO_ROOT/scripts/run_tune.py" \
+  --gpus-per-trial 1 \
+  --cpus-per-trial 2 \
+  --experiment-name cifar10_tune_lab_gpu \
+  --data-dir "${SCRATCH}/data/cifar10" \
+  --storage-path "${SCRATCH}/ray_results"
 
 echo "Job finished at: $(date -Is)"
