@@ -40,10 +40,16 @@ ray_cluster_install_trap() {
 }
 
 ray_cluster_start() {
-  local log
+  local log node
+  # RAY_TMPDIR must exist on each node (batch mkdir only covers the head).
+  for node in "${nodes_array[@]}"; do
+    srun --nodes=1 --ntasks=1 -w "$node" --cpu-bind=none \
+      bash -c "mkdir -p '${RAY_TMPDIR}'" || true
+  done
+
   log=$(ray_cluster_start_log "$head_node")
   srun --nodes=1 --ntasks=1 -w "$head_node" --cpu-bind=none \
-    bash -c "ray start --head --node-ip-address='${head_ip}' --port='${port}' \
+    bash -c "mkdir -p '${RAY_TMPDIR}' && ray start --head --node-ip-address='${head_ip}' --port='${port}' \
       --num-cpus='${SLURM_CPUS_PER_TASK}' --num-gpus='${ray_num_gpus}' \
       --temp-dir='${RAY_TMPDIR}' --disable-usage-stats --block \
       >>'${log}' 2>&1" &
@@ -51,9 +57,10 @@ ray_cluster_start() {
   for worker in "${nodes_array[@]:1}"; do
     log=$(ray_cluster_start_log "$worker")
     srun --nodes=1 --ntasks=1 -w "$worker" --cpu-bind=none \
-      bash -c "ray start --address='${ip_head}' \
+      bash -c "mkdir -p '${RAY_TMPDIR}' && ray start --address='${ip_head}' \
         --num-cpus='${SLURM_CPUS_PER_TASK}' --num-gpus='${ray_num_gpus}' \
-        --disable-usage-stats --block >>'${log}' 2>&1" &
+        --temp-dir='${RAY_TMPDIR}' --disable-usage-stats --block \
+        >>'${log}' 2>&1" &
     sleep 10
   done
   sleep 15

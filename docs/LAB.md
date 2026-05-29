@@ -108,7 +108,8 @@ ray stop
 
 - Workers stuck at 1/2 nodes: `--address` must use the head compute IP from the log.
 - Job hangs at verify: the template runs Python on the batch/head node (not a second blocking `srun` on an occupied head).
-- Ray daemon details: see `$RAY_TMPDIR/ray-start-<jobid>-<node>.log` on the nodes if the cluster fails to start.
+- Ray daemon details: see `$RAY_TMPDIR/ray-start-<jobid>-<node>.log` on each node if the cluster fails to start.
+- `Alive nodes: 1` but SLURM allocated several nodes: check `.err` for `ray-start-...log: No such file or directory` — `$RAY_TMPDIR` must exist on **every** node (handled in `ray_cluster.sh`).
 
 **Deliverable checkpoint:** your edited verify sbatch and log excerpts showing two alive nodes.
 
