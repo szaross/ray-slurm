@@ -51,7 +51,8 @@ Pilot with 12 samples / 3 epochs: CPU sweep wall ~1–2 min, GPU sweep wall can 
 | `SLURM_GPUS_PER_TASK` unbound | `set -u` on Cyfronet | `${SLURM_GPUS_PER_TASK:-${SLURM_GPUS_ON_NODE:-1}}` in `ray_cluster.sh` |
 | CPU bind errors | Nested `srun` | `--cpu-bind=none` in `ray_cluster.sh` |
 | Hang at verify | Second `srun` on head | `ray_cluster_run_on_head` |
-| Cluster start failures | GCS / network | `cat $RAY_TMPDIR/ray-start-<jobid>-<node>.log` |
+| Cluster start failures | GCS / network | `cat $RAY_TMPDIR/ray-start-<jobid>-<node>.log` on that node |
+| Workers fail, `Alive nodes: 1` | `$RAY_TMPDIR` missing on workers | `mkdir -p` on each node before `ray start` (see `ray_cluster.sh`) |
 | `pydantic` missing | venv | Re-run `setup_env.sh` |
 | CPU trials on GPU | Old `run_tune.py` | `gpus_per_trial` passed into `train_cifar` |
 
